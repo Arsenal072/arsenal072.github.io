@@ -74,7 +74,9 @@ xhr.onreadystatechange = function(){
 **Get与Post区别**
 
 - GET参数通过URL传递，POST放在Request body中。
+
 - GET请求在URL中传送的参数是有长度限制的，而POST没有。
+
 - GET请求没有请求体，效率更高。
 - GET产生一个TCP数据包；POST产生两个TCP数据包。对于GET方式的请求，浏览器会把http header和data一并发送出去，服务器响应200（返回数据）；而对于POST，浏览器先发送header，服务器响应100 continue，浏览器再发送data，服务器响应200 ok（返回数据）
 - GET比POST更不安全，因为参数直接暴露在URL上，所以不能用来传递敏感信息
@@ -150,101 +152,6 @@ xhr.onreadystatechange = function(){
 
 
 
-#### **HTTP缓存**
-
-为什么要使用缓存，是因为缓存可以提高性能和用户体验
-
-- 减少了冗余的数据传递，节省宽带流量
-- 减少了服务器的负担，大大提高了网站性能
-- 加快了网页加载速度 这也正是HTTP缓存属于客户端缓存的原因。
-
-**缓存存储位置**
-
-缓存的储存是内存和磁盘两个位置，由当前浏览器本身的策略决定，比较随机，从内存的缓存中取出的数据会显示 `(from memory cache)`，从磁盘的缓存中取出的数据会显示 `(from disk cache)`
-
-**HTTP缓存包括：强制缓存和协商缓存**
-
-**强制缓存和协商缓存区别**
-
-- 协商缓存每次请求都需要跟服务器通信，验证本地缓存是否依旧有效，最终确定是否使用本地缓存
-- 强制缓存命中缓存，服务器返回状态码是 `200`，而协商缓存命中缓存，服务器返回状态码是 `304`
-
-![缓存流程图](https://www.overtaking.top/2018/07/20/20180720110647/cache-rule.png)
-
-##### 强制缓存
-
-强制缓存是第一次访问服务器获取数据后，在有效时间内不会再请求服务器，而是直接使用缓存数据
-
-对于强制缓存，服务器响应的header中会用两个字段来表明——Expires和Cache-Control
-
-![强制缓存流程图](https://www.overtaking.top/2018/07/20/20180720110647/mandatory-cache.png)
-
-**Expires**
-
-在 `HTTP 1.0` 版本，服务器使用的响应头字段为 Expires，Exprires的值为服务端返回的数据到期时间**(绝对时间)**。当再次请求时的请求时间小于返回的此时间，则直接使用缓存数据。但由于服务端时间和客户端时间可能有误差，这也将导致缓存命中的误差，另一方面，Expires是HTTP1.0的产物，故现在大多数使用Cache-Control替代。
-
-**Cache-Control**
-
-Cache-Control有很多属性，不同的属性代表的意义也不同。
-
-- private：客户端可以缓存
-- public：客户端和代理服务器都可以缓存
-- max-age=t：缓存内容将在t秒后失效
-- no-cache：需要使用协商缓存来验证缓存数据
-- no-store：所有内容都不会缓存。
-
-`Cache-Control` 的值中最常用的为 `max-age=xxx`**（相对时间）**，缓存本身就是为了数据传输的优化和性能而存在的，所以 `no-store` 几乎不会使用
-
-**注意事项：**
-
-在 `HTTP 1.0` 版本中，`Expires` 字段的**绝对时间**是从服务器获取的，由于请求需要时间，所以浏览器的请求时间与服务器接收到请求所获取的时间是存在误差的，这也导致了缓存命中的误差，在 `HTTP 1.1` 版本中，因为 `Cache-Control` 的值 `max-age=xxx` 中的 `xxx` 是以秒为单位的**相对时间**，所以在浏览器接收到资源后开始倒计时，规避了 `HTTP 1.0` 中缓存命中存在误差的缺点，为了兼容低版本 HTTP 协议，正常开发中两种响应头会同时使用，`HTTP 1.1` 版本的实现优先级高于 `HTTP 1.0`
-
-只不过Cache-Control的选择更多，设置更细致，如果同时设置的话，其优先级高于Expires
-
-##### 协商缓存
-
-设置协商缓存后，第一次访问服务器获取数据时，服务器会将数据和缓存标识一起返回给浏览器，客户端会将数据和标识存入缓存数据库中，下一次请求时，会先去缓存中取出缓存标识发送给服务器进行询问，当服务器数据更改时会更新标识，所以服务器拿到浏览器发来的标识进行对比，相同代表数据未更改，返回304状态码，浏览器会去缓存中获取数据。如果标识不同，代表服务器更改过数据，所以会将新的数据和新的标识返回浏览器，浏览器会将新的数据和标识存入缓存中。
-
-![协商缓存流程图](https://www.overtaking.top/2018/07/20/20180720110647/compared-cache.png)
-
-**两种协商缓存方案：**
-
-- **在 `HTTP 1.0` 版本中，服务器通过 `Last-Modified` 响应头来设置缓存标识，通常取请求数据的最后修改时间（绝对时间）作为值**。而浏览器将接收到返回的数据和标识存入缓存，再次请求会自动发送 `If-Modified-Since` 请求头，值为之前返回的最后修改时间（标识），服务器取出 `If-Modified-Since` 的值与数据的上次修改时间对比，如果上次修改时间大于了 `If-Modified-Since` 的值，说明被修改过，则通过 `Last-Modified` 响应头返回新的最后修改时间和新的数据，否则未被修改，返回状态码 `304` 通知浏览器命中缓存。
-- **在 `HTTP 1.1` 版本中，服务器通过 `Etag` 响应头来设置缓存标识（唯一标识，像一个指纹一样，生成规则由服务器来决定）**，浏览器接收到数据和唯一标识后存入缓存，下次请求时，通过 `If-None-Match` 请求头将唯一标识带给服务器，服务器取出唯一标识与之前的标识对比，不同，说明修改过，返回新标识和数据，相同，则返回状态码 `304` 通知浏览器命中缓存。
-
-**注意事项：**
-
-使用协商缓存时 `HTTP 1.0` 版本还是不太靠谱，假设一个文件增加了一个字符后又删除了，文件相当于没更改，但是最后修改时间变了，会被当作修改处理，本应该命中缓存，服务器却重新发送了数据，因此 `HTTP 1.1` 中使用的 `Etag` 唯一标识是根据文件内容或摘要生成的，保证了只要文件内容不变，则一定会命中缓存，为了兼容低版本 HTTP 协议，开发中两种响应头也会同时使用，同样 `HTTP 1.1` 版本的实现优先级高于 `HTTP 1.0`
-
-![缓存策略流程图](https://www.overtaking.top/2018/07/20/20180720110647/cache-flow-chart.jpg)
-
-**缓存使用场景**
-
-对于大部分的场景都可以使用强缓存配合协商缓存解决，但是在一些特殊的地方可能需要选择特殊的缓存策略
-
-- 对于某些不需要缓存的资源，可以使用 Cache-control: no-store ，表示该资源不需要缓存
-- 对于频繁变动的资源，可以使用 Cache-Control: no-cache 并配合 ETag 使用，表示该资源已被缓存，但是每次都会发送请求询问资源是否更新
-
-精度：Etag 要优于 Last-Modified(精度为秒)
-性能：Last-Modified 要优于 Etag，Last-Modified需要记录时间，而Etag需要服务器通过算法来计算出一个hash值
-优先级：服务器校验优先考虑Etag
-
-##### memory Cache与disk Cache 
-
-- 如果memory Cache有数据，优先使用memory Cache然后disk Cache
-- 内存读取比硬盘中读取的速度更快。但是我们也不能把所有数据放在内存中缓存的，因为内存也是有限的
-- memory cache(内存缓存)退出进程时数据会被清除，而disk cache(硬盘缓存)退出进程时数据不会被清除。
-
-
-
-**不同刷新的请求执行过程**
-
-- **浏览器地址栏中写入URL，回车**。浏览器发现缓存中有这个文件了，不用继续请求了，直接去缓存拿。（最快）
-- **F5**就是告诉浏览器，别偷懒，好歹去服务器看看这个文件是否有过期了。于是浏览器就战战兢兢的发送一个请求带上If-Modify-since/If-None-Match。
-- **Ctrl+F5**告诉浏览器，你先把你缓存中的这个文件给我删了，然后再去服务器请求个完整的资源文件下来。于是客户端就完成了强行更新的操作
-
-
-
 #### 关闭TCP连接(四次挥手)
 
 数据传输完毕后，双方都可释放连接。最开始的时候，客户端和服务器都是处于ESTABLISHED状态，假设客户端主动关闭，服务器被动关闭。
@@ -275,7 +182,8 @@ Cache-Control有很多属性，不同的属性代表的意义也不同。
 
 #### 浏览器渲染页面过程 
 
-![img](https://camo.githubusercontent.com/ae6a6d492332cd6332144f8e6c924d1197e26f7e/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f31322f32382f313637663536353235323166656132663f773d36383926683d33323726663d706e6726733d313235303739)
+<!-- ![img](https://camo.githubusercontent.com/ae6a6d492332cd6332144f8e6c924d1197e26f7e/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f31322f32382f313637663536353235323166656132663f773d36383926683d33323726663d706e6726733d313235303739) -->
+<img src="https://camo.githubusercontent.com/ae6a6d492332cd6332144f8e6c924d1197e26f7e/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f31322f32382f313637663536353235323166656132663f773d36383926683d33323726663d706e6726733d313235303739" alt="">
 
 - 解析HTML形成DOM树
 - 解析CSS形成CSS规则树
@@ -308,7 +216,8 @@ Cache-Control有很多属性，不同的属性代表的意义也不同。
 
 **defer 和 async 属性的区别：**
 
-![1595917611680](C:/Users/ucmed/Desktop/1595917611680.png)
+<!-- ![1595917611680](1595917611680.png) -->
+<img :src="$withBase('/images/1595917611680.png')" alt="">
 
 **1）情况1**`<script src="script.js"></script>`
 
@@ -331,275 +240,10 @@ defer 属性表示延迟执行引入的 JavaScript，即这段 JavaScript 加载
 
 因为 DOM 是属于渲染引擎中的东西，而 JS 是 JS 引擎中的东西。当我们用 JS 去操作 DOM 时，本质上是 JS 引擎和渲染引擎之间进行了“跨界交流”。这个“跨界交流”的实现并不简单，它依赖了桥接接口作为“桥梁”，这个开销本身就是不可忽略的。
 
-![1595917654776](C:/Users/ucmed/Desktop/1595917654776.png)
+<!-- ![1595917654776](1595917654776.png) -->
+<img :src="$withBase('/images/1595917654776.png')" alt="">
 
 参考链接：https://github.com/ljianshu/Blog/issues/51
-
-
-
-#### 跨域
-
-**什么是跨域**
-
-当协议、域名、端口号，有一个或多个不同时，去访问并获取数据的现象称为跨域访问，同源策略限制下 `ajax`、`cookie`、`localStorage`、`dom`都是不支持跨域访问的。
-
-**为什么会出现跨域**
-
-为了抵御`XSS`、`CSRF` 等攻击， Netscape 公司 1995 年在浏览器中引入同源策略/SOP（Same origin policy）。
-
-假设 cookie 支持了跨域，http 协议无状态，当用户访问了一个银行网站登录后，银行网站的服务器给返回了一个 sessionId，当通过当前浏览器再访问一个恶意网站，如果 cookie 支持跨域，恶意网站将获取 sessionId 并访问银行网站，出现安全性问题；
-
-同源策略限制下，可以访问到后台服务器的数据，后台服务器会正常返回数据，而被浏览器给拦截了。
-
-#### 解决方案
-
-- **CORS（跨域资源共享 Cross-origin resource sharing）**
-- **使用 jsonp 跨域**
-- 利用 **node + webpack + webpack-dev-server** 转发请求
-- **使用 nginx 实现跨域**
-- **使用 postMessage 实现跨域**（不是使用 `Ajax` 的数据通信，更多是在两个页面之间的通信，在 `A` 页面中引入 `B` 页面，在 `A`、`B` 两个页面之间通信）
-- **使用 document.domain 实现跨域**(大多使用于同一公司不同产品间获取数据，必须是一级域名和二级域名的关系)
-- **使用 location.hash 实现跨域**
-- **使用 window.name 实现跨域**
-- **使用 WebSocket 实现跨域**
-- **NodeJS 中间件 `http-proxy-middleware` 实现跨域代理**
-
-#### jsonp跨域
-
-动态创建一个script标签，利用script去获取跨域资源。
-
-```js
-<script>
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-
-    // 传参一个回调函数名给后端，方便后端返回时执行这个在前端定义的回调函数
-    script.src = 'http://www.domain2.com:8080/login?user=admin&callback=handleCallback';
-    document.head.appendChild(script);
-
-    // 回调执行函数
-    function handleCallback(res) {
-        alert(JSON.stringify(res));
-    }
- </script>
-```
-
-##### JSONP存在的问题
-
-https://juejin.im/post/5b75b497e51d45666276251d
-
-#### CORS（跨域资源共享 Cross-origin resource sharing）
-
-允许浏览器向跨域服务器发出XMLHttpRequest请求，从而克服跨域问题，它需要浏览器和服务器的同时支持。请求分为简单请求和非简单请求，非简单请求会先进行一次OPTION方法进行预检，看是否允许当前跨域请求。
-
-##### 简单请求
-
-请求方法是以下三种方法之一：
-
-- HEAD
-- GET
-- POST
-
-HTTP的请求头信息不超出以下几种字段：
-
-- Accept
-- Accept-Language
-- Content-Language
-- Last-Event-ID
-- Content-Type：只限于三个值application/x-www-form-urlencoded、multipart/form-data、text/plain
-
-后端的响应头信息：
-
-- Access-Control-Allow-Origin：该字段是必须的。它的值要么是请求时Origin字段的值，要么是一个*，表示接受任意域名的请求。
-- Access-Control-Allow-Credentials：该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。
-- Access-Control-Expose-Headers：该字段可选。CORS请求时，XMLHttpRequest对象的getResponseHeader()方法只能拿到6个基本字段：Cache-Control、Content-Language、Content-Type、Expires、Last-Modified、Pragma。如果想拿到其他字段，就必须在Access-Control-Expose-Headers里面指定。
-
-##### 非简单请求
-
-非简单请求是那种对服务器有特殊要求的请求，比如请求方法是PUT或DELETE，或者Content-Type字段的类型是application/json。非简单请求的CORS请求，会在正式通信之前，增加一次HTTP查询请求，称为"预检"请求（preflight）。
-
-**预检请求**
-
-- Access-Control-Request-Method：该字段是必须的，用来列出浏览器的CORS请求会用到哪些HTTP方法
-- Access-Control-Request-Headers：该字段是一个逗号分隔的字符串，指定浏览器CORS请求会额外发送的头信息字段，上例是X-Custom-Header。
-
-```js
-Accept: */*
-Accept-Encoding: gzip, deflate, br
-Accept-Language: zh-CN,zh;q=0.9
-Access-Control-Request-Headers: token,uhospitalid,x-ucmed-deviceid
-Access-Control-Request-Method: GET
-Cache-Control: no-cache
-Connection: keep-alive
-Host: ru-test.zwjk.com
-Origin: https://open-test.zwjk.com
-Pragma: no-cache
-Sec-Fetch-Dest: empty
-Sec-Fetch-Site: same-site
-Sec-Fetch-User: ?F
-User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 10_3_1 like Mac OS X) AppleWebKit/603.1.3 (KHTML, like Gecko) Version/10.0 Mobile/14E304 Safari/602.1 wechatdevtools/1.02.1910120 MicroMessenger/7.0.4 Language/zh_CN webview/15873648039943518 webdebugger port/64404
-```
-
-**预检响应**
-
-**预检请求被拒绝**
-
-如果浏览器否定了"预检"请求，会返回一个正常的HTTP回应，但是没有任何CORS相关的头信息字段。这时，浏览器就会认定，服务器不同意预检请求，因此触发一个错误，被XMLHttpRequest对象的onerror回调函数捕获。
-
-```js
-XMLHttpRequest cannot load http://api.alice.com.
-Origin http://api.bob.com is not allowed by Access-Control-Allow-Origin.
-```
-
-**预检通过**
-
-```js
-Access-Control-Allow-Credentials: true
-Access-Control-Allow-Headers: content-type,token,hospitalId,from,scyUserId,uhospitalId,moduleId,x-ucmed-deviceid,userId
-Access-Control-Allow-Methods: POST,GET,DELETE,PUT
-Access-Control-Allow-Origin: https://open-test.zwjk.com
-Access-Control-Max-Age: 3600
-Connection: keep-alive
-Content-Length: 0
-Date: Mon, 20 Apr 2020 10:37:37 GMT
-Server: nginx
-```
-
-**Access-Control-Allow-Methods**
-
-该字段必需，它的值是逗号分隔的一个字符串，表明服务器支持的所有跨域请求的方法。注意，返回的是所有支持的方法，而不单是浏览器请求的那个方法。这是为了避免多次"预检"请求。
-
-**Access-Control-Allow-Headers**
-
-如果浏览器请求包括`Access-Control-Request-Headers`字段，则`Access-Control-Allow-Headers`字段是必需的。它也是一个逗号分隔的字符串，表明服务器支持的所有头信息字段，不限于浏览器在"预检"中请求的字段。
-
-**Access-Control-Allow-Credentials**
-
-该字段与简单请求时的含义相同。
-
-**Access-Control-Max-Age**
-
-该字段可选，用来指定本次预检请求的有效期，单位为秒。上面结果中，即允许缓存该条回应3600秒，在此期间，不用发出另一条预检请求。
-
-**发送正式请求**
-
-```js
-Request Method: GET
-
-Accept: application/json, text/javascript, */*; q=0.01
-Accept-Encoding: gzip, deflate, br
-Accept-Language: zh-CN,zh;q=0.9
-Cache-Control: no-cache
-Connection: keep-alive
-Host: ru-test.zwjk.com
-Origin: https://open-test.zwjk.com
-Pragma: no-cache
-Sec-Fetch-Dest: empty
-Sec-Fetch-Site: same-site
-Sec-Fetch-User: ?F
-token: 7921adc665c22a435248cc685b606f2b
-uhospitalId: ea3ee53f-fe0a-44db-8386-bdade497b235
-User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 10_3_1 like Mac OS X) AppleWebKit/603.1.3 (KHTML, like Gecko) Version/10.0 Mobile/14E304 Safari/602.1 wechatdevtools/1.02.1910120 MicroMessenger/7.0.4 Language/zh_CN webview/15873648039943518 webdebugger port/64404
-X-ucmed-DeviceId: 
-```
-
-#### postMessage跨域
-
-postMessage是HTML5 XMLHttpRequest Level 2中的API，且是为数不多可以跨域操作的window属性之一
-
-1.）a.html：(http://www.domain1.com/a.html)
-
-```js
-<iframe id="iframe" src="http://www.domain2.com/b.html" style="display:none;"></iframe>
-<script>       
-    var iframe = document.getElementById('iframe');
-    iframe.onload = function() {
-        var data = {
-            name: 'aym'
-        };
-        // 向domain2传送跨域数据
-        iframe.contentWindow.postMessage(JSON.stringify(data), 'http://www.domain2.com');
-    };
-
-    // 接受domain2返回数据
-    window.addEventListener('message', function(e) {
-        alert('data from domain2 ---> ' + e.data);
-    }, false);
-</script>
-```
-
-2.）b.html：(http://www.domain2.com/b.html)
-
-```js
-<script>
-    // 接收domain1的数据
-    window.addEventListener('message', function(e) {
-        alert('data from domain1 ---> ' + e.data);
-
-        var data = JSON.parse(e.data);
-        if (data) {
-            data.number = 16;
-
-            // 处理后再发回domain1
-            window.parent.postMessage(JSON.stringify(data), 'http://www.domain1.com');
-        }
-    }, false);
-</script>
-
-```
-
-#### document.domain + iframe跨域
-
-此方案仅限主域相同，子域不同的跨域应用场景。
-
-实现原理：两个页面都通过js强制设置document.domain为基础主域，就实现了同域
-
-1.）父窗口：(http://www.domain.com/a.html)
-
-```js
-<iframe id="iframe" src="http://child.domain.com/b.html"></iframe>
-<script>
-    document.domain = 'domain.com';
-    var user = 'admin';
-</script>
-
-```
-
-2.）子窗口：(http://child.domain.com/b.html)
-
-```js
-<script>
-    document.domain = 'domain.com';
-    // 获取父窗口中变量
-    alert('get js data from parent ---> ' + window.parent.user);
-</script>
-
-```
-
-#### webpack-dev-server
-
-```js
-proxyTable: {
-    '/api': {
-        target: 'http://192.168.1.46:8080',
-        pathRewrite: {'^/api' : ''},
-        changeOrigin: true
-    }
-}
-
-```
-
-#### nginx代理跨域
-
-#### Nodejs中间件代理跨域
-
-http-proxy-middleware与webpack-dev-server类似
-
-![1595925041438](C:/Users/ucmed/Desktop/1595925041438.png)
-
-正向代理: 买票的黄牛
-
-反向代理: 租房的代理  
 
 
 
@@ -674,7 +318,8 @@ session 是基于 cookie 实现的，session 存储在服务器端，sessionId �
   - 支持跨程序调用
 - **token 的身份验证流程：**
 
-![1595926545839](C:/Users/ucmed/Desktop/1595926545839.png)
+<!-- ![1595926545839](1595926545839.png) -->
+<img :src="$withBase('/images/1595926545839.png')" alt="">
 
 - 每一次请求都需要携带 token，需要把 token 放到 HTTP 的 Header 里
 - 基于 token 的用户认证是一种服务端无状态的认证方式，服务端不用存放 token 数据。用解析 token 的计算时间换取 session 的存储空间，从而减轻服务器的压力，减少频繁的查询数据库
@@ -690,7 +335,7 @@ sessionStorage用于本地存储一个会话（session）中的数据，这些�
 
 
 
-#### **web storage和cookie的区别**
+####  **web storage和cookie的区别**
 
 Web Storage的概念和cookie相似，区别是它是为了更大容量存储设计的。Cookie的大小是受限的，并且每次你请求一个新的页面的时候Cookie都会被发送过去，这样无形中浪费了带宽，另外cookie还需要指定作用域，不可以跨域调用。 Cookie也是不可或缺的：Cookie的作用是与服务器进行交互，作为HTTP规范的一部分而存在 ，而Web Storage仅仅是为了在本地“存储”数据而生。
 
@@ -715,7 +360,9 @@ HTTPS是在HTTP上建立SSL加密层，并对传输数据进行加密，是HTTP�
 在HTTP协议中有可能存在信息窃取或身份伪装等安全问题。使用HTTPS通信机制可以有效地防止这些问题，接下来，我们先来了解下 HTTP协议存在的哪些问题：
 
 - 通信使用明文（不加密），内容可能被窃听
+
 - 无法证明报文的完整性，所以可能遭篡改
+
 - 不验证通信方的身份，因此有可能遭遇伪装
 
 ##### HTTPS协议，它比HTTP协议相比多了以下优势
@@ -752,7 +399,8 @@ HTTPS是在HTTP上建立SSL加密层，并对传输数据进行加密，是HTTP�
 
 对应到计算机世界，那就是数字签名
 
-![1595927166869](C:/Users/ucmed/Desktop/1595927166869.png)
+<!-- ![1595927166869](1595927166869.png) -->
+<img :src="$withBase('/images/1595927166869.png')" alt="">
 
 ##### 解决通信方身份可能被伪装的问题——数字证书
 
@@ -760,11 +408,13 @@ HTTPS是在HTTP上建立SSL加密层，并对传输数据进行加密，是HTTP�
 
 在拿到数字证书之后，就用同样的Hash 算法， 再次生成消息摘要，然后用证书颁发机构CA的公钥对数字签名解密， 得到证书颁发机构CA创建的消息摘要， 两者一比，就知道有没有人篡改了
 
-![1595927191432](C:/Users/ucmed/Desktop/1595927191432.png)
+<!-- ![1595927191432](1595927191432.png) -->
+<img :src="$withBase('/images/1595927191432.png')" alt="">
 
 ##### HTTPS工作流程
 
-![1595929124283](C:/Users/ucmed/Desktop/1595929124283.png)
+<!-- ![1595929124283](1595929124283.png) -->
+<img :src="$withBase('/images/1595929124283.png')" alt="">
 
 1. Client发起一个HTTPS（比如`https://juejin.im/user/5a9a9cdcf265da238b7d771c`）的请求，根据RFC2818的规定，Client知道需要连接Server的443（默认）端口。
 2. Server把事先配置好的公钥证书（public key certificate）返回给客户端。
@@ -785,6 +435,7 @@ HTTPS是在HTTP上建立SSL加密层，并对传输数据进行加密，是HTTP�
 - HTTPS 的连接很简单，是无状态的；HTTPS 协议是由 SSL+HTTP 协议构建的可进行加密传输、身份认证的网络协议，比 HTTP 协议安全
 
 https://juejin.im/post/59e4c02151882578d02f4aca
+
 
 
 
@@ -840,6 +491,7 @@ CSRF 攻击要成功的条件在于攻击者能够准确地预测所有的参数
 1. Token 要足够随机，使攻击者无法准确预测
 2. Token 是一次性的，即每次请求成功后要更新 Token，增加预测难度
 3. Token 要主要保密性，敏感操作使用 POST，防止 Token 出现在 URL 中
+
 
 
 

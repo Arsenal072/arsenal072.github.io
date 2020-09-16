@@ -133,8 +133,7 @@ IE盒模型：width = border + padding + 内容的宽度；height = border + pad
         float: left;
     }
 ```
-
-![1577424860944](C:\Users\ucmed\AppData\Roaming\Typora\typora-user-images\1577424860944.png)
+<img :src="$withBase('/images/1577424860944.png')" alt="">
 
 #### flex布局
 
@@ -296,7 +295,7 @@ JS兼容性
 
 层叠性
 
-![1577425726302](C:\Users\ucmed\AppData\Roaming\Typora\typora-user-images\1577425726302.png)
+<img :src="$withBase('/images/1577425726302.png')" alt="">
 
 #### 选择器类型、优先级
 
