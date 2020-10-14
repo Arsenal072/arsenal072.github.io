@@ -580,3 +580,5 @@ DOM 型 XSS 攻击，实际上就是网站前端 JavaScript 代码本身不够�
 在使用 `.innerHTML`、`.outerHTML`、`document.write()` 时要特别小心，不要把不可信的数据作为 HTML 插到页面上，而应尽量使用 `.textContent`、`.setAttribute()` 等。
 
 https://www.cxymsg.com/guide/security.html
+
+
