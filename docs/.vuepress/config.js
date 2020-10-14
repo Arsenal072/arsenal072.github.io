@@ -55,6 +55,16 @@ module.exports = {
                     ['vue/vueRouter', 'vue-router'],
                 ]
             },
+            {
+                title: '工具',
+                path: '/tool/',
+                collapsable: false, // 可选的, 默认值是 true,
+                sidebarDepth: 2,    // 可选的, 默认值是 1
+                children: [
+                    ['tool/eslint', '代码检查'],
+                    ['tool/gitCommit', 'git commit提交规范'],
+                ]
+            },
         ]
     }
 }
